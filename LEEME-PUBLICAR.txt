@@ -1,0 +1,14 @@
+MI DINERO — APLICACIÓN WEB INSTALABLE (PWA)
+
+Incluye:
+- index.html: aplicación original
+- manifest.json: identidad y configuración de instalación
+- sw.js: caché para abrir sin conexión tras la primera visita
+- icon-192.png e icon-512.png: iconos de la aplicación
+
+PUBLICACIÓN GRATUITA:
+Se puede alojar como sitio estático en GitHub Pages con una cuenta gratuita y un repositorio público.
+Sube TODOS estos archivos a la raíz del repositorio, luego entra a Settings > Pages y elige Deploy from a branch, rama main y carpeta /(root), y guarda. GitHub Pages sirve sitios estáticos desde repositorios y está disponible en GitHub Free para repositorios públicos.
+Después de que se publique, abre la URL HTTPS desde Chrome en Android. En el menú ⋮ elige "Instalar aplicación" o "Agregar a pantalla principal" (el texto puede variar).
+La primera apertura requiere internet para descargar archivos; después, el service worker permite cargar la app offline.
+IMPORTANTE: los registros se guardan solo en el almacenamiento local de cada navegador/dispositivo. Si se borran los datos del navegador o se desinstala/borra almacenamiento, pueden perderse. No existe sincronización ni copia de seguridad.

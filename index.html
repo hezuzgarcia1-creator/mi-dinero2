@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#24583f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Mi dinero</title>
+<style>
+:root{--green:#24583f;--mint:#e4f1e8;--red:#a94435;--pink:#fae8e3;--bg:#f5f7f5}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:16px system-ui,-apple-system,sans-serif;color:#1e2c24}
+main{max-width:560px;margin:auto;padding:20px 16px 40px}.top{display:flex;justify-content:space-between;align-items:center}
+h1{margin:4px 0;font-size:28px;color:var(--green)}.month{margin:10px 0 18px;width:100%;padding:12px;border:1px solid #d6dfd8;border-radius:12px;background:white;font:inherit}
+.balance{background:var(--green);color:white;padding:20px;border-radius:20px}.muted{opacity:.8;font-size:14px}.amount{font-size:34px;font-weight:750;margin:5px 0}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.card{background:white;border-radius:16px;padding:16px}.card strong{display:block;font-size:21px;margin-top:8px}.income{background:var(--mint);color:#24583f}.expense{background:var(--pink);color:var(--red)}
+.panel{background:white;border-radius:16px;padding:16px;margin-top:14px}.panel h2{font-size:18px;margin:0 0 12px}
+form{display:grid;grid-template-columns:1fr 1fr;gap:9px}input,select,button{font:inherit;padding:12px;border-radius:11px;border:1px solid #d6dfd8;min-width:0}form input:first-child{grid-column:1/-1}button{border:0;background:var(--green);color:white;font-weight:650;cursor:pointer}form button{grid-column:1/-1}
+.tabs{display:flex;gap:8px;margin:12px 0}.tabs button{flex:1;background:#e5ebe6;color:var(--green)}.tabs button.active{background:var(--green);color:white}
+ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #edf0ed}li:last-child{border:0}.desc small{display:block;color:#6b776f}.delete{background:transparent;color:var(--red);padding:4px 8px}
+.note{font-size:12px;color:#68756c;margin-top:16px}
+</style></head>
+<body><main>
+<div class="top"><h1>Mi dinero</h1><span aria-hidden="true">💰</span></div>
+<label class="muted" for="month">Mes de control</label><input class="month" id="month" type="month">
+<section class="balance"><div class="muted">Dinero disponible</div><div class="amount" id="balance">$0.00</div><div class="muted">MXN · Ingresos menos gastos</div></section>
+<div class="cards"><div class="card income">↗ Ingresos<strong id="income">$0.00</strong></div><div class="card expense">↘ Gastos<strong id="expense">$0.00</strong></div></div>
+<section class="panel"><h2>Agregar movimiento</h2>
+<form id="form"><select id="type" aria-label="Tipo"><option value="income">Ingreso</option><option value="expense">Gasto</option></select><input id="date" type="date" required aria-label="Fecha"><input id="concept" placeholder="Concepto (ej. sueldo, comida)" required><input id="amount" type="number" min="0.01" step="0.01" placeholder="Importe en pesos" required><button>Guardar movimiento</button></form></section>
+<section class="panel"><h2>Movimientos</h2><div class="tabs"><button class="active" data-filter="all">Todos</button><button data-filter="income">Ingresos</button><button data-filter="expense">Gastos</button></div><ul id="list"></ul><div id="empty" class="muted">Todavía no hay movimientos este mes.</div></section>
+<p class="note">Tus registros se guardan en este navegador de este dispositivo. No borres los datos del navegador si quieres conservarlos.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id), money=n=>n.toLocaleString('es-MX',{style:'currency',currency:'MXN'});
+const now=new Date(), pad=n=>String(n).padStart(2,'0'), today=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+$('month').value=today.slice(0,7);$('date').value=today;
+const STORAGE_KEY='mi-dinero-items-v2';
+let items=[];
+let filter='all';
+
+function loadItems(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY) || localStorage.getItem('mi-dinero-items');
+    const parsed=raw ? JSON.parse(raw) : [];
+    items=Array.isArray(parsed) ? parsed : [];
+  }catch(e){
+    items=[];
+  }
+}
+
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(items));
+    // Verify that the browser actually retained the data.
+    const check=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+    if(!Array.isArray(check)) throw new Error('No se pudo verificar el guardado');
+    render();
+    return true;
+  }catch(e){
+    alert('No se pudo guardar el movimiento. Si abriste el archivo desde una vista previa, agrégalo a la pantalla de inicio y vuelve a intentarlo.');
+    return false;
+  }
+}
+
+loadItems();
+function render(){
+ const month=$('month').value;let visible=items.filter(x=>x.date.startsWith(month));
+ let inc=visible.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0), exp=visible.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
+ $('income').textContent=money(inc);$('expense').textContent=money(exp);$('balance').textContent=money(inc-exp);
+ let rows=visible.filter(x=>filter==='all'||x.type===filter).sort((a,b)=>b.date.localeCompare(a.date));
+ $('list').innerHTML='';$('empty').style.display=rows.length?'none':'block';
+ rows.forEach(x=>{let li=document.createElement('li'),d=document.createElement('div'),v=document.createElement('div'),del=document.createElement('button');d.className='desc';d.textContent=x.concept;let sm=document.createElement('small');sm.textContent=x.date;d.append(sm);v.textContent=(x.type==='income'?'+':'−')+money(x.amount);v.style.color=x.type==='income'?'#24583f':'#a94435';del.className='delete';del.textContent='Eliminar';del.onclick=()=>{items=items.filter(y=>y.id!==x.id);save()};li.append(d,v,del);$('list').append(li)})
+}
+$('form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const type=$('type').value;
+  const date=$('date').value;
+  const concept=$('concept').value.trim();
+  const amount=Number($('amount').value);
+  if(!date || !concept || !(amount>0)) return;
+
+  const item={
+    id:crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random()),
+    type,date,concept,amount
+  };
+
+  items.push(item);
+  if(save()){
+    $('concept').value='';
+    $('amount').value='';
+    $('concept').focus();
+  }else{
+    items=items.filter(x=>x.id!==item.id);
+  }
+});
+$('month').addEventListener('change',render);document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));render()});render();
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+window.addEventListener('beforeunload',()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(items))}catch{}});
+</script></body></html>
