@@ -29,7 +29,7 @@ ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-betw
 <div class="cards"><div class="card income">↗ Ingresos<strong id="income">$0.00</strong></div><div class="card expense">↘ Gastos<strong id="expense">$0.00</strong></div></div>
 <section class="panel"><h2>Agregar movimiento</h2>
 <form id="form"><select id="type" aria-label="Tipo"><option value="income">Ingreso</option><option value="expense">Gasto</option></select><input id="date" type="date" required aria-label="Fecha"><input id="concept" placeholder="Concepto (ej. sueldo, comida)" required><input id="amount" type="number" min="0.01" step="0.01" placeholder="Importe en pesos" required><button>Guardar movimiento</button></form></section>
-<section class="panel"><h2>Movimientos</h2><div class="tabs"><button class="active" data-filter="all">Todos</button><button data-filter="income">Ingresos</button><button data-filter="expense">Gastos</button></div><ul id="list"></ul><div id="empty" class="muted">Todavía no hay movimientos este mes.</div></section>
+<section class="panel"><h2>Movimientos</h2><button type="button" id="export" style="width:100%;margin-bottom:12px">Descargar informe del mes (CSV)</button><div class="tabs"><button class="active" data-filter="all">Todos</button><button data-filter="income">Ingresos</button><button data-filter="expense">Gastos</button></div><ul id="list"></ul><div id="empty" class="muted">Todavía no hay movimientos este mes.</div></section>
 <p class="note">Tus registros se guardan en este navegador de este dispositivo. No borres los datos del navegador si quieres conservarlos.</p>
 </main>
 <script>
@@ -94,6 +94,26 @@ $('form').addEventListener('submit',e=>{
   }else{
     items=items.filter(x=>x.id!==item.id);
   }
+});
+$('export').addEventListener('click',()=>{
+  const month=$('month').value;
+  const data=items.filter(x=>x.date.startsWith(month)).sort((a,b)=>a.date.localeCompare(b.date));
+  const totalIn=data.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
+  const totalOut=data.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
+  const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const lines=[
+    ['Informe mensual Mi dinero',month],
+    ['Ingresos totales',totalIn.toFixed(2)],
+    ['Gastos totales',totalOut.toFixed(2)],
+    ['Saldo final',(totalIn-totalOut).toFixed(2)],
+    [],
+    ['Tipo','Fecha','Concepto','Importe (MXN)'],
+    ...data.map(x=>[x.type==='income'?'Ingreso':'Gasto',x.date,x.concept,x.amount.toFixed(2)])
+  ];
+  const csv='\uFEFF'+lines.map(row=>row.map(csvCell).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='Mi-dinero-'+month+'.csv';a.click();URL.revokeObjectURL(url);
 });
 $('month').addEventListener('change',render);document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));render()});render();
 if('serviceWorker' in navigator){
