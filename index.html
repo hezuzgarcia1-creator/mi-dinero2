@@ -21,6 +21,36 @@ form{display:grid;grid-template-columns:1fr 1fr;gap:9px}input,select,button{font
 .tabs{display:flex;gap:8px;margin:12px 0}.tabs button{flex:1;background:#e5ebe6;color:var(--green)}.tabs button.active{background:var(--green);color:white}
 ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #edf0ed}li:last-child{border:0}.desc small{display:block;color:#6b776f}.delete{background:transparent;color:var(--red);padding:4px 8px}
 .note{font-size:12px;color:#68756c;margin-top:16px}
+
+.report-subtitle{font-size:13px;color:#68756c;margin:-5px 0 14px}
+.report-kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
+.report-kpi{border-radius:12px;padding:12px;min-width:0}
+.report-kpi span{display:block;font-size:12px;margin-bottom:6px}
+.report-kpi strong{display:block;font-size:19px;overflow-wrap:anywhere}
+.kpi-income{background:#e4f1e8;color:#24583f}.kpi-expense{background:#fae8e3;color:#a94435}
+.kpi-balance{background:#e7eefb;color:#28569a;grid-column:1/-1}
+.chart-card{border:1px solid #edf0ed;border-radius:13px;padding:13px;margin-top:12px}
+.chart-card h3{font-size:15px;margin:0 0 12px}
+.bar-chart{display:grid;gap:14px}
+.bar-row{display:grid;grid-template-columns:82px 1fr;gap:9px;align-items:center;font-size:13px}
+.bar-track{height:22px;background:#f0f2f0;border-radius:7px;overflow:hidden}
+.bar-fill{height:100%;min-width:2px;border-radius:7px;transition:width .25s}
+.bar-fill.income-fill{background:#39865a}.bar-fill.expense-fill{background:#c65b4d}
+.bar-value{font-size:12px;color:#58645c;margin-top:4px}
+.category-chart{width:170px;height:170px;border-radius:50%;margin:4px auto 12px;background:#edf0ed;position:relative}
+.category-chart:after{content:"";position:absolute;inset:42px;border-radius:50%;background:white}
+.legend{display:grid;gap:8px;font-size:13px}
+.legend-item{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.legend-name{display:flex;align-items:center;gap:7px}
+.legend-dot{width:11px;height:11px;border-radius:3px;display:inline-block;flex:none}
+.report-insight{background:#f5f7f5;border-radius:12px;padding:12px;margin-top:12px;font-size:13px;line-height:1.5}
+.print-button{width:100%;margin-top:12px}
+@media print{
+  body{background:white}.top,form,.tabs,.delete,.note,#printReport{display:none!important}
+  main{max-width:none;padding:0}.panel,.balance,.card{break-inside:avoid;box-shadow:none}
+  .report-panel{display:block!important}.chart-card{break-inside:avoid}
+}
+
 </style></head>
 <body><main>
 <div class="top"><h1>Mi dinero</h1><span aria-hidden="true">💰</span></div>
@@ -29,6 +59,28 @@ ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-betw
 <div class="cards"><div class="card income">↗ Ingresos<strong id="income">$0.00</strong></div><div class="card expense">↘ Gastos<strong id="expense">$0.00</strong></div></div>
 <section class="panel"><h2>Agregar movimiento</h2>
 <form id="form"><select id="type" aria-label="Tipo"><option value="income">Ingreso</option><option value="expense">Gasto</option></select><input id="date" type="date" required aria-label="Fecha"><input id="concept" placeholder="Concepto (ej. sueldo, comida)" required><input id="amount" type="number" min="0.01" step="0.01" placeholder="Importe en pesos" required><button>Guardar movimiento</button></form></section>
+
+<section class="panel report-panel">
+  <h2>Reporte mensual</h2>
+  <p class="report-subtitle">Resumen visual de tus finanzas del mes seleccionado</p>
+  <div class="report-kpis">
+    <div class="report-kpi kpi-income"><span>Ingresos</span><strong id="reportIncome">$0.00</strong></div>
+    <div class="report-kpi kpi-expense"><span>Gastos</span><strong id="reportExpense">$0.00</strong></div>
+    <div class="report-kpi kpi-balance"><span>Saldo final</span><strong id="reportBalance">$0.00</strong></div>
+  </div>
+  <div class="chart-card">
+    <h3>Ingresos contra gastos</h3>
+    <div id="comparisonChart" class="bar-chart" role="img" aria-label="Gráfica de ingresos y gastos"></div>
+  </div>
+  <div class="chart-card">
+    <h3>¿En qué se fue tu dinero?</h3>
+    <div id="categoryChart" class="category-chart"></div>
+    <div id="categoryLegend" class="legend"></div>
+  </div>
+  <div class="report-insight" id="reportInsight">Agrega movimientos para ver tu reporte.</div>
+  <button type="button" id="printReport" class="print-button">Imprimir o guardar como PDF</button>
+</section>
+
 <section class="panel"><h2>Movimientos</h2><button type="button" id="export" style="width:100%;margin-bottom:12px">Descargar informe del mes (CSV)</button><div class="tabs"><button class="active" data-filter="all">Todos</button><button data-filter="income">Ingresos</button><button data-filter="expense">Gastos</button></div><ul id="list"></ul><div id="empty" class="muted">Todavía no hay movimientos este mes.</div></section>
 <p class="note">Tus registros se guardan en este navegador de este dispositivo. No borres los datos del navegador si quieres conservarlos.</p>
 </main>
@@ -65,10 +117,77 @@ function save(){
 }
 
 loadItems();
+
+function renderReport(visible){
+  const incomeItems=visible.filter(x=>x.type==='income');
+  const expenseItems=visible.filter(x=>x.type==='expense');
+  const inc=incomeItems.reduce((s,x)=>s+Number(x.amount||0),0);
+  const exp=expenseItems.reduce((s,x)=>s+Number(x.amount||0),0);
+  const balance=inc-exp;
+  $('reportIncome').textContent=money(inc);
+  $('reportExpense').textContent=money(exp);
+  $('reportBalance').textContent=money(balance);
+
+  const max=Math.max(inc,exp,1);
+  $('comparisonChart').innerHTML='';
+  [['Ingresos',inc,'income-fill'],['Gastos',exp,'expense-fill']].forEach(([label,value,cls])=>{
+    const row=document.createElement('div'); row.className='bar-row';
+    const name=document.createElement('div'); name.textContent=label;
+    const wrap=document.createElement('div');
+    const track=document.createElement('div'); track.className='bar-track';
+    const fill=document.createElement('div'); fill.className='bar-fill '+cls;
+    fill.style.width=(value/max*100)+'%'; track.append(fill);
+    const amount=document.createElement('div'); amount.className='bar-value'; amount.textContent=money(value);
+    wrap.append(track,amount); row.append(name,wrap); $('comparisonChart').append(row);
+  });
+
+  const groups={};
+  expenseItems.forEach(x=>{
+    const category=(x.concept||'Sin concepto').trim() || 'Sin concepto';
+    groups[category]=(groups[category]||0)+Number(x.amount||0);
+  });
+  const entries=Object.entries(groups).sort((a,b)=>b[1]-a[1]);
+  const colors=['#39865a','#d58a35','#5986c4','#b56aa8','#c65b4d','#55a9a5','#8b9560','#8c75c4'];
+  const total=entries.reduce((s,e)=>s+e[1],0);
+  const chart=$('categoryChart'), legend=$('categoryLegend');
+  legend.innerHTML='';
+  if(!entries.length){
+    chart.style.background='#edf0ed';
+    legend.textContent='Registra gastos para ver su distribución por concepto.';
+  }else{
+    let angle=0;
+    const slices=entries.map(([name,value],i)=>{
+      const start=angle; angle+=value/total*360;
+      return `${colors[i%colors.length]} ${start}deg ${angle}deg`;
+    });
+    chart.style.background=`conic-gradient(${slices.join(',')})`;
+    entries.forEach(([name,value],i)=>{
+      const item=document.createElement('div');item.className='legend-item';
+      const left=document.createElement('span');left.className='legend-name';
+      const dot=document.createElement('i');dot.className='legend-dot';dot.style.background=colors[i%colors.length];
+      const label=document.createElement('span');label.textContent=name;
+      left.append(dot,label);
+      const amount=document.createElement('strong');amount.textContent=money(value);
+      item.append(left,amount);legend.append(item);
+    });
+  }
+  if(!visible.length){
+    $('reportInsight').textContent='No hay movimientos registrados en este mes. Cuando agregues ingresos y gastos, aquí aparecerá tu análisis mensual.';
+  }else{
+    const top=entries[0];
+    const savings=inc>0?Math.round((balance/inc)*100):null;
+    let message=`Registraste ${incomeItems.length} ingreso(s) y ${expenseItems.length} gasto(s). `;
+    message+=top?`Tu mayor gasto por concepto fue “${top[0]}” (${money(top[1])}). `:'Todavía no hay gastos registrados. ';
+    message+=inc>0?`Tu saldo representa ${savings}% de tus ingresos.`:'Agrega ingresos para calcular qué parte quedó disponible.';
+    $('reportInsight').textContent=message;
+  }
+}
+
 function render(){
  const month=$('month').value;let visible=items.filter(x=>x.date.startsWith(month));
  let inc=visible.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0), exp=visible.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
  $('income').textContent=money(inc);$('expense').textContent=money(exp);$('balance').textContent=money(inc-exp);
+ renderReport(visible);
  let rows=visible.filter(x=>filter==='all'||x.type===filter).sort((a,b)=>b.date.localeCompare(a.date));
  $('list').innerHTML='';$('empty').style.display=rows.length?'none':'block';
  rows.forEach(x=>{let li=document.createElement('li'),d=document.createElement('div'),v=document.createElement('div'),del=document.createElement('button');d.className='desc';d.textContent=x.concept;let sm=document.createElement('small');sm.textContent=x.date;d.append(sm);v.textContent=(x.type==='income'?'+':'−')+money(x.amount);v.style.color=x.type==='income'?'#24583f':'#a94435';del.className='delete';del.textContent='Eliminar';del.onclick=()=>{items=items.filter(y=>y.id!==x.id);save()};li.append(d,v,del);$('list').append(li)})
@@ -115,6 +234,7 @@ $('export').addEventListener('click',()=>{
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='Mi-dinero-'+month+'.csv';a.click();URL.revokeObjectURL(url);
 });
+$('printReport').addEventListener('click',()=>window.print());
 $('month').addEventListener('change',render);document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));render()});render();
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
