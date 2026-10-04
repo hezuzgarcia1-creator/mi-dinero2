@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#24583f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Mi dinero</title>
+<style>
+:root{--green:#24583f;--mint:#e4f1e8;--red:#a94435;--pink:#fae8e3;--bg:#f5f7f5}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:16px system-ui,-apple-system,sans-serif;color:#1e2c24}
+main{max-width:560px;margin:auto;padding:20px 16px 40px}.top{display:flex;justify-content:space-between;align-items:center}
+h1{margin:4px 0;font-size:28px;color:var(--green)}.month{margin:10px 0 18px;width:100%;padding:12px;border:1px solid #d6dfd8;border-radius:12px;background:white;font:inherit}
+.balance{background:var(--green);color:white;padding:20px;border-radius:20px}.muted{opacity:.8;font-size:14px}.amount{font-size:34px;font-weight:750;margin:5px 0}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.card{background:white;border-radius:16px;padding:16px}.card strong{display:block;font-size:21px;margin-top:8px}.income{background:var(--mint);color:#24583f}.expense{background:var(--pink);color:var(--red)}
+.panel{background:white;border-radius:16px;padding:16px;margin-top:14px}.panel h2{font-size:18px;margin:0 0 12px}
+form{display:grid;grid-template-columns:1fr 1fr;gap:9px}input,select,button{font:inherit;padding:12px;border-radius:11px;border:1px solid #d6dfd8;min-width:0}form input:first-child{grid-column:1/-1}button{border:0;background:var(--green);color:white;font-weight:650;cursor:pointer}form button{grid-column:1/-1}
+.tabs{display:flex;gap:8px;margin:12px 0}.tabs button{flex:1;background:#e5ebe6;color:var(--green)}.tabs button.active{background:var(--green);color:white}
+ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #edf0ed}li:last-child{border:0}.desc small{display:block;color:#6b776f}.delete{background:transparent;color:var(--red);padding:4px 8px}
+.note{font-size:12px;color:#68756c;margin-top:16px}
+
+
+/* Reporte estilo minimalista: gris, vidrio suave y jerarquía limpia */
+.report-panel{background:#fff}
+.report-subtitle{font-size:13px;color:#777;margin:-5px 0 16px}
+.report-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.report-kpi{border:1px solid rgba(90,90,95,.08);border-radius:16px;padding:12px;min-width:0;background:rgba(245,245,247,.78);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.report-kpi span{display:block;font-size:12px;color:#777;margin-bottom:7px}
+.report-kpi strong{display:block;font-size:clamp(14px,3.7vw,19px);color:#29292d;overflow-wrap:anywhere}
+.kpi-income{background:rgba(235,239,236,.9)}.kpi-expense{background:rgba(232,232,234,.9)}.kpi-balance{background:rgba(220,222,226,.9)}
+.report-section{border-top:1px solid #e6e6e8;padding-top:17px;margin-top:18px}
+.report-section h3{font-size:16px;margin:0 0 8px;color:#242428}
+.report-help{font-size:13px;color:#777;line-height:1.5;margin:0 0 13px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.calendar-weekday{text-align:center;color:#85858a;font-size:12px;padding:5px 0 8px}
+.calendar-day{min-height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#333;background:#f1f1f3;border:1px solid rgba(0,0,0,.025)}
+.calendar-day.empty{background:transparent;border-color:transparent}
+.calendar-day.level-0{background:#f3f3f5}.calendar-day.level-1{background:#dedee1}.calendar-day.level-2{background:#c3c3c8}.calendar-day.level-3{background:#96969d;color:#fff}.calendar-day.level-4{background:#55555d;color:#fff}
+.calendar-legend{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:13px;color:#777;font-size:11px;flex-wrap:wrap}
+.legend-swatch{width:17px;height:17px;border-radius:5px;display:inline-block}
+.report-insight{background:rgba(242,242,244,.85);border:1px solid #ededf0;border-radius:15px;padding:14px;margin-top:16px;font-size:13px;line-height:1.6;color:#4b4b50}
+.top-days{display:grid;gap:9px;margin-top:10px}.top-day{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 12px;background:#f5f5f6;border-radius:11px;font-size:13px}.top-day strong{font-variant-numeric:tabular-nums;color:#29292d}
+.pdf-button{width:100%;margin-top:14px}
+@media print{
+ @page{size:A4;margin:13mm}
+ body{background:#fff;color:#202024;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ main{max-width:none;padding:0}
+ .top,.month,.balance,.cards,main>section:not(.report-panel),.note{display:none!important}
+ .report-panel{display:block!important;margin:0;padding:0;border:0;box-shadow:none;background:#fff}
+ .pdf-button{display:none!important}
+ .report-kpi,.report-section,.report-insight,.top-day{break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .report-section{margin-top:15px;padding-top:14px}
+ .calendar-day{min-height:31px;border-radius:7px}
+ .report-panel>h2{font-size:25px;margin:0 0 4px}
+ .report-subtitle{margin:0 0 16px}
+}
+
+</style></head>
+<body><main>
+<div class="top"><h1>Mi dinero</h1><span aria-hidden="true">💰</span></div>
+<label class="muted" for="month">Mes de control</label><input class="month" id="month" type="month">
+<section class="balance"><div class="muted">Dinero disponible</div><div class="amount" id="balance">$0.00</div><div class="muted">MXN · Ingresos menos gastos</div></section>
+<div class="cards"><div class="card income">↗ Ingresos<strong id="income">$0.00</strong></div><div class="card expense">↘ Gastos<strong id="expense">$0.00</strong></div></div>
+<section class="panel"><h2>Agregar movimiento</h2>
+<form id="form"><select id="type" aria-label="Tipo"><option value="income">Ingreso</option><option value="expense">Gasto</option></select><input id="date" type="date" required aria-label="Fecha"><input id="concept" placeholder="Concepto (ej. sueldo, comida)" required><input id="amount" type="number" min="0.01" step="0.01" placeholder="Importe en pesos" required><button>Guardar movimiento</button></form></section>
+
+<section class="panel report-panel">
+  <h2>Mi dinero</h2>
+  <p class="report-subtitle" id="reportMonthTitle">Resumen mensual</p>
+  <div class="report-kpis">
+    <div class="report-kpi kpi-income"><span>Ingresos</span><strong id="reportIncome">$0.00</strong></div>
+    <div class="report-kpi kpi-expense"><span>Gastos</span><strong id="reportExpense">$0.00</strong></div>
+    <div class="report-kpi kpi-balance"><span>Saldo</span><strong id="reportBalance">$0.00</strong></div>
+  </div>
+  <section class="report-section">
+    <h3>Calendario de gastos</h3>
+    <p class="report-help">Cada día se sombrea según el total gastado. Los tonos más oscuros indican un gasto mayor.</p>
+    <div id="calendarGrid" class="calendar-grid" aria-label="Calendario de intensidad de gastos"></div>
+    <div class="calendar-legend"><span>Menor gasto</span><i class="legend-swatch" style="background:#f3f3f5"></i><i class="legend-swatch" style="background:#dedee1"></i><i class="legend-swatch" style="background:#c3c3c8"></i><i class="legend-swatch" style="background:#96969d"></i><i class="legend-swatch" style="background:#55555d"></i><span>Mayor gasto</span></div>
+  </section>
+  <section class="report-section">
+    <h3>Días de mayor gasto</h3>
+    <p class="report-help">Los tres días en los que más dinero salió durante el mes.</p>
+    <div id="topDays" class="top-days"></div>
+  </section>
+  <div class="report-insight" id="reportInsight">Agrega movimientos para ver tu reporte.</div>
+  <button type="button" class="pdf-button" id="savePdf">Guardar como PDF</button>
+</section>
+
+<section class="panel"><h2>Movimientos</h2><div class="tabs"><button class="active" data-filter="all">Todos</button><button data-filter="income">Ingresos</button><button data-filter="expense">Gastos</button></div><ul id="list"></ul><div id="empty" class="muted">Todavía no hay movimientos este mes.</div></section>
+<section class="panel" aria-labelledby="backupTitle"><h2 id="backupTitle">Copias de seguridad</h2><p class="report-subtitle">Tus movimientos se guardan solo en este dispositivo. Crea una copia para poder recuperarlos si cambias de teléfono o navegador.</p><button type="button" id="backupExport" style="width:100%;margin-bottom:9px">Crear copia de seguridad</button><button type="button" id="backupImportBtn" style="width:100%;background:#e5ebe6;color:#24583f">Restaurar una copia</button><input id="backupFile" type="file" accept=".json,application/json" hidden><p class="note">Guarda el archivo de respaldo en un lugar seguro. No contiene contraseñas ni se envía a internet.</p></section>
+<p class="note">Tus registros se guardan en este navegador de este dispositivo. No borres los datos del navegador si quieres conservarlos.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id), money=n=>n.toLocaleString('es-MX',{style:'currency',currency:'MXN'});
+const now=new Date(), pad=n=>String(n).padStart(2,'0'), today=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+$('month').value=today.slice(0,7);$('date').value=today;
+const STORAGE_KEY='mi-dinero-items-v2';
+let items=[];
+let filter='all';
+
+function loadItems(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY) || localStorage.getItem('mi-dinero-items');
+    const parsed=raw ? JSON.parse(raw) : [];
+    items=Array.isArray(parsed) ? parsed : [];
+  }catch(e){
+    items=[];
+  }
+}
+
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(items));
+    // Verify that the browser actually retained the data.
+    const check=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+    if(!Array.isArray(check)) throw new Error('No se pudo verificar el guardado');
+    render();
+    return true;
+  }catch(e){
+    alert('No se pudo guardar el movimiento. Si abriste el archivo desde una vista previa, agrégalo a la pantalla de inicio y vuelve a intentarlo.');
+    return false;
+  }
+}
+
+loadItems();
+
+function renderReport(visible){
+  const incomeItems=visible.filter(x=>x.type==='income');
+  const expenseItems=visible.filter(x=>x.type==='expense');
+  const inc=incomeItems.reduce((s,x)=>s+Number(x.amount||0),0);
+  const exp=expenseItems.reduce((s,x)=>s+Number(x.amount||0),0);
+  const balance=inc-exp;
+  $('reportIncome').textContent=money(inc);
+  $('reportExpense').textContent=money(exp);
+  $('reportBalance').textContent=money(balance);
+
+  const monthValue=$('month').value;
+  const [year,monthNum]=monthValue.split('-').map(Number);
+  const monthDate=new Date(year,monthNum-1,1);
+  $('reportMonthTitle').textContent=monthDate.toLocaleDateString('es-MX',{month:'long',year:'numeric'}).replace(/^./,c=>c.toUpperCase());
+  const daysInMonth=new Date(year,monthNum,0).getDate();
+  const firstDay=(monthDate.getDay()+6)%7; // lunes como primer día
+  const daily=Array.from({length:daysInMonth},()=>0);
+  expenseItems.forEach(x=>{
+    const day=Number(String(x.date).slice(8,10));
+    if(day>=1&&day<=daysInMonth)daily[day-1]+=Number(x.amount||0);
+  });
+  const nonzero=daily.filter(v=>v>0).sort((a,b)=>a-b);
+  const thresholds=nonzero.length?[.25,.5,.75].map(q=>nonzero[Math.min(nonzero.length-1,Math.floor((nonzero.length-1)*q))]):[];
+  const levelFor=value=>{
+    if(value<=0)return 0;
+    if(value<=thresholds[0])return 1;
+    if(value<=thresholds[1])return 2;
+    if(value<=thresholds[2])return 3;
+    return 4;
+  };
+  const grid=$('calendarGrid');grid.innerHTML='';
+  ['L','M','M','J','V','S','D'].forEach(letter=>{
+    const el=document.createElement('div');el.className='calendar-weekday';el.textContent=letter;grid.append(el);
+  });
+  for(let i=0;i<firstDay;i++){
+    const blank=document.createElement('div');blank.className='calendar-day empty';blank.setAttribute('aria-hidden','true');grid.append(blank);
+  }
+  daily.forEach((value,index)=>{
+    const day=index+1,cell=document.createElement('div');
+    cell.className=`calendar-day level-${levelFor(value)}`;
+    cell.textContent=day;
+    cell.title=value>0?`${day}: ${money(value)} en gastos`:`${day}: sin gastos`;
+    cell.setAttribute('aria-label',cell.title);
+    grid.append(cell);
+  });
+  const topDays=daily.map((amount,index)=>({day:index+1,amount})).filter(x=>x.amount>0).sort((a,b)=>b.amount-a.amount).slice(0,3);
+  const topContainer=$('topDays');topContainer.innerHTML='';
+  if(!topDays.length){topContainer.textContent='No hay gastos registrados en este mes.';}
+  else topDays.forEach((entry,index)=>{
+    const row=document.createElement('div');row.className='top-day';
+    const label=document.createElement('span');label.textContent=`${index+1}. ${new Date(year,monthNum-1,entry.day).toLocaleDateString('es-MX',{day:'numeric',month:'long'})}`;
+    const amount=document.createElement('strong');amount.textContent=money(entry.amount);
+    row.append(label,amount);topContainer.append(row);
+  });
+  if(!visible.length){
+    $('reportInsight').textContent='No hay movimientos registrados en este mes. Cuando agregues ingresos y gastos, aquí aparecerá tu resumen.';
+  }else{
+    const savings=inc>0?Math.round((balance/inc)*100):null;
+    const average=expenseItems.length?exp/expenseItems.length:0;
+    let message=`Registraste ${incomeItems.length} ingreso(s) y ${expenseItems.length} gasto(s). `;
+    message+=expenseItems.length?`Tu gasto promedio por movimiento fue ${money(average)}. `:'Todavía no hay gastos registrados. ';
+    message+=inc>0?`Tu saldo representa ${savings}% de tus ingresos.`:'Agrega ingresos para calcular qué parte quedó disponible.';
+    $('reportInsight').textContent=message;
+  }
+}
+
+function render(){
+ const month=$('month').value;let visible=items.filter(x=>x.date.startsWith(month));
+ let inc=visible.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0), exp=visible.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
+ $('income').textContent=money(inc);$('expense').textContent=money(exp);$('balance').textContent=money(inc-exp);
+ renderReport(visible);
+ let rows=visible.filter(x=>filter==='all'||x.type===filter).sort((a,b)=>b.date.localeCompare(a.date));
+ $('list').innerHTML='';$('empty').style.display=rows.length?'none':'block';
+ rows.forEach(x=>{let li=document.createElement('li'),d=document.createElement('div'),v=document.createElement('div'),del=document.createElement('button');d.className='desc';d.textContent=x.concept;let sm=document.createElement('small');sm.textContent=x.date;d.append(sm);v.textContent=(x.type==='income'?'+':'−')+money(x.amount);v.style.color=x.type==='income'?'#24583f':'#a94435';del.className='delete';del.textContent='Eliminar';del.onclick=()=>{items=items.filter(y=>y.id!==x.id);save()};li.append(d,v,del);$('list').append(li)})
+}
+$('form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const type=$('type').value;
+  const date=$('date').value;
+  const concept=$('concept').value.trim();
+  const amount=Number($('amount').value);
+  if(!date || !concept || !(amount>0)) return;
+
+  const item={
+    id:crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random()),
+    type,date,concept,amount
+  };
+
+  items.push(item);
+  if(save()){
+    $('concept').value='';
+    $('amount').value='';
+    $('concept').focus();
+  }else{
+    items=items.filter(x=>x.id!==item.id);
+  }
+});
+$('savePdf').addEventListener('click',()=>window.print());
+
+$('backupExport').addEventListener('click',()=>{
+  const backup={app:'Mi dinero',version:1,createdAt:new Date().toISOString(),items};
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='Mi-dinero-respaldo-'+today+'.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+$('backupImportBtn').addEventListener('click',()=>$('backupFile').click());
+$('backupFile').addEventListener('change',async e=>{
+  const file=e.target.files?.[0]; if(!file)return;
+  try{
+    const data=JSON.parse(await file.text());
+    const incoming=Array.isArray(data)?data:data.items;
+    const valid=Array.isArray(incoming)&&incoming.every(x=>x&&['income','expense'].includes(x.type)&&typeof x.date==='string'&&typeof x.concept==='string'&&Number.isFinite(Number(x.amount))&&Number(x.amount)>0);
+    if(!valid)throw new Error('El archivo no tiene el formato de una copia válida.');
+    if(!confirm('Restaurar reemplazará los movimientos actuales por los del respaldo. ¿Continuar?'))return;
+    items=incoming.map(x=>({...x,amount:Number(x.amount),id:x.id||String(Date.now()+Math.random())}));
+    if(save())alert('Copia restaurada correctamente.');
+  }catch(err){alert('No se pudo restaurar la copia: '+err.message)}
+  finally{e.target.value=''}
+});
+$('month').addEventListener('change',render);document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));render()});render();
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+window.addEventListener('beforeunload',()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(items))}catch{}});
+</script></body></html>
