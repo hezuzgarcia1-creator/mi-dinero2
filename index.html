@@ -44,12 +44,6 @@ ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-betw
 .legend-name{display:flex;align-items:center;gap:7px}
 .legend-dot{width:11px;height:11px;border-radius:3px;display:inline-block;flex:none}
 .report-insight{background:#f5f7f5;border-radius:12px;padding:12px;margin-top:12px;font-size:13px;line-height:1.5}
-.print-button{width:100%;margin-top:12px}
-@media print{
-  body{background:white}.top,form,.tabs,.delete,.note,#printReport{display:none!important}
-  main{max-width:none;padding:0}.panel,.balance,.card{break-inside:avoid;box-shadow:none}
-  .report-panel{display:block!important}.chart-card{break-inside:avoid}
-}
 
 </style></head>
 <body><main>
@@ -78,7 +72,6 @@ ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-betw
     <div id="categoryLegend" class="legend"></div>
   </div>
   <div class="report-insight" id="reportInsight">Agrega movimientos para ver tu reporte.</div>
-  <button type="button" id="printReport" class="print-button">Imprimir o guardar como PDF</button>
 </section>
 
 <section class="panel"><h2>Movimientos</h2><button type="button" id="export" style="width:100%;margin-bottom:12px">Descargar informe del mes (CSV)</button><div class="tabs"><button class="active" data-filter="all">Todos</button><button data-filter="income">Ingresos</button><button data-filter="expense">Gastos</button></div><ul id="list"></ul><div id="empty" class="muted">Todavía no hay movimientos este mes.</div></section>
@@ -234,7 +227,6 @@ $('export').addEventListener('click',()=>{
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='Mi-dinero-'+month+'.csv';a.click();URL.revokeObjectURL(url);
 });
-$('printReport').addEventListener('click',()=>window.print());
 $('month').addEventListener('change',render);document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));render()});render();
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
