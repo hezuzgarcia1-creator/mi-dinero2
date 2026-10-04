@@ -78,6 +78,7 @@ ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-betw
 </section>
 
 <section class="panel"><h2>Movimientos</h2><div class="tabs"><button class="active" data-filter="all">Todos</button><button data-filter="income">Ingresos</button><button data-filter="expense">Gastos</button></div><ul id="list"></ul><div id="empty" class="muted">Todavía no hay movimientos este mes.</div></section>
+<section class="panel" aria-labelledby="backupTitle"><h2 id="backupTitle">Copias de seguridad</h2><p class="report-subtitle">Tus movimientos se guardan solo en este dispositivo. Crea una copia para poder recuperarlos si cambias de teléfono o navegador.</p><button type="button" id="backupExport" style="width:100%;margin-bottom:9px">Crear copia de seguridad</button><button type="button" id="backupImportBtn" style="width:100%;background:#e5ebe6;color:#24583f">Restaurar una copia</button><input id="backupFile" type="file" accept=".json,application/json" hidden><p class="note">Guarda el archivo de respaldo en un lugar seguro. No contiene contraseñas ni se envía a internet.</p></section>
 <p class="note">Tus registros se guardan en este navegador de este dispositivo. No borres los datos del navegador si quieres conservarlos.</p>
 </main>
 <script>
@@ -212,8 +213,26 @@ $('form').addEventListener('submit',e=>{
 });
 $('savePdf').addEventListener('click',()=>window.print());
 
+$('backupExport').addEventListener('click',()=>{
+  const backup={app:'Mi dinero',version:1,createdAt:new Date().toISOString(),items};
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download='Mi-dinero-'+month+'.csv';a.click();URL.revokeObjectURL(url);
+  a.href=url;a.download='Mi-dinero-respaldo-'+today+'.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+$('backupImportBtn').addEventListener('click',()=>$('backupFile').click());
+$('backupFile').addEventListener('change',async e=>{
+  const file=e.target.files?.[0]; if(!file)return;
+  try{
+    const data=JSON.parse(await file.text());
+    const incoming=Array.isArray(data)?data:data.items;
+    const valid=Array.isArray(incoming)&&incoming.every(x=>x&&['income','expense'].includes(x.type)&&typeof x.date==='string'&&typeof x.concept==='string'&&Number.isFinite(Number(x.amount))&&Number(x.amount)>0);
+    if(!valid)throw new Error('El archivo no tiene el formato de una copia válida.');
+    if(!confirm('Restaurar reemplazará los movimientos actuales por los del respaldo. ¿Continuar?'))return;
+    items=incoming.map(x=>({...x,amount:Number(x.amount),id:x.id||String(Date.now()+Math.random())}));
+    if(save())alert('Copia restaurada correctamente.');
+  }catch(err){alert('No se pudo restaurar la copia: '+err.message)}
+  finally{e.target.value=''}
 });
 $('month').addEventListener('change',render);document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));render()});render();
 if('serviceWorker' in navigator){
