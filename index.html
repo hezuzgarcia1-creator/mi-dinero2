@@ -44,6 +44,8 @@ ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-betw
 .legend-name{display:flex;align-items:center;gap:7px}
 .legend-dot{width:11px;height:11px;border-radius:3px;display:inline-block;flex:none}
 .report-insight{background:#f5f7f5;border-radius:12px;padding:12px;margin-top:12px;font-size:13px;line-height:1.5}
+.pdf-button{width:100%;margin-top:14px}
+@media print{body{background:#fff}main{max-width:none;padding:0}.top,.month,.balance,.cards,main>section:not(.report-panel),.note{display:none!important}.report-panel{display:block!important;margin:0;padding:0;border:0;box-shadow:none}.pdf-button{display:none!important}.chart-card,.report-kpi,.report-insight{break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 
 </style></head>
 <body><main>
@@ -72,9 +74,10 @@ ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-betw
     <div id="categoryLegend" class="legend"></div>
   </div>
   <div class="report-insight" id="reportInsight">Agrega movimientos para ver tu reporte.</div>
+  <button type="button" class="pdf-button" id="savePdf">Guardar como PDF</button>
 </section>
 
-<section class="panel"><h2>Movimientos</h2><button type="button" id="export" style="width:100%;margin-bottom:12px">Descargar informe del mes (CSV)</button><div class="tabs"><button class="active" data-filter="all">Todos</button><button data-filter="income">Ingresos</button><button data-filter="expense">Gastos</button></div><ul id="list"></ul><div id="empty" class="muted">Todavía no hay movimientos este mes.</div></section>
+<section class="panel"><h2>Movimientos</h2><div class="tabs"><button class="active" data-filter="all">Todos</button><button data-filter="income">Ingresos</button><button data-filter="expense">Gastos</button></div><ul id="list"></ul><div id="empty" class="muted">Todavía no hay movimientos este mes.</div></section>
 <p class="note">Tus registros se guardan en este navegador de este dispositivo. No borres los datos del navegador si quieres conservarlos.</p>
 </main>
 <script>
@@ -207,23 +210,8 @@ $('form').addEventListener('submit',e=>{
     items=items.filter(x=>x.id!==item.id);
   }
 });
-$('export').addEventListener('click',()=>{
-  const month=$('month').value;
-  const data=items.filter(x=>x.date.startsWith(month)).sort((a,b)=>a.date.localeCompare(b.date));
-  const totalIn=data.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
-  const totalOut=data.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
-  const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
-  const lines=[
-    ['Informe mensual Mi dinero',month],
-    ['Ingresos totales',totalIn.toFixed(2)],
-    ['Gastos totales',totalOut.toFixed(2)],
-    ['Saldo final',(totalIn-totalOut).toFixed(2)],
-    [],
-    ['Tipo','Fecha','Concepto','Importe (MXN)'],
-    ...data.map(x=>[x.type==='income'?'Ingreso':'Gasto',x.date,x.concept,x.amount.toFixed(2)])
-  ];
-  const csv='\uFEFF'+lines.map(row=>row.map(csvCell).join(',')).join('\r\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+$('savePdf').addEventListener('click',()=>window.print());
+
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='Mi-dinero-'+month+'.csv';a.click();URL.revokeObjectURL(url);
 });
