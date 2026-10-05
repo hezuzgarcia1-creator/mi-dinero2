@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#24583f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Mi dinero</title>
+<style>
+:root{--green:#24583f;--mint:#e4f1e8;--red:#a94435;--pink:#fae8e3;--bg:#f5f7f5}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:16px system-ui,-apple-system,sans-serif;color:#1e2c24}
+main{max-width:560px;margin:auto;padding:20px 16px 40px}.top{display:flex;justify-content:space-between;align-items:center}
+h1{margin:4px 0;font-size:28px;color:var(--green)}.month{margin:10px 0 18px;width:100%;padding:12px;border:1px solid #d6dfd8;border-radius:12px;background:white;font:inherit}
+.balance{background:var(--green);color:white;padding:20px;border-radius:20px}.muted{opacity:.8;font-size:14px}.amount{font-size:34px;font-weight:750;margin:5px 0}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.card{background:white;border-radius:16px;padding:16px}.card strong{display:block;font-size:21px;margin-top:8px}.income{background:var(--mint);color:#24583f}.expense{background:var(--pink);color:var(--red)}
+.panel{background:white;border-radius:16px;padding:16px;margin-top:14px}.panel h2{font-size:18px;margin:0 0 12px}
+form{display:grid;grid-template-columns:1fr 1fr;gap:9px}input,select,button{font:inherit;padding:12px;border-radius:11px;border:1px solid #d6dfd8;min-width:0}form input:first-child{grid-column:1/-1}button{border:0;background:var(--green);color:white;font-weight:650;cursor:pointer}form button{grid-column:1/-1}
+.tabs{display:flex;gap:8px;margin:12px 0}.tabs button{flex:1;background:#e5ebe6;color:var(--green)}.tabs button.active{background:var(--green);color:white}
+ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #edf0ed}li:last-child{border:0}.desc small{display:block;color:#6b776f}.delete{background:transparent;color:var(--red);padding:4px 8px}
+.note{font-size:12px;color:#68756c;margin-top:16px}
+
+.report-subtitle{font-size:13px;color:#68756c;margin:-5px 0 14px}
+.report-kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
+.report-kpi{border-radius:12px;padding:12px;min-width:0}
+.report-kpi span{display:block;font-size:12px;margin-bottom:6px}
+.report-kpi strong{display:block;font-size:19px;overflow-wrap:anywhere}
+.kpi-income{background:#e4f1e8;color:#24583f}.kpi-expense{background:#fae8e3;color:#a94435}
+.kpi-balance{background:#e7eefb;color:#28569a;grid-column:1/-1}
+.chart-card{border:1px solid #edf0ed;border-radius:13px;padding:13px;margin-top:12px}
+.chart-card h3{font-size:15px;margin:0 0 12px}
+.bar-chart{display:grid;gap:14px}
+.bar-row{display:grid;grid-template-columns:82px 1fr;gap:9px;align-items:center;font-size:13px}
+.bar-track{height:22px;background:#f0f2f0;border-radius:7px;overflow:hidden}
+.bar-fill{height:100%;min-width:2px;border-radius:7px;transition:width .25s}
+.bar-fill.income-fill{background:#39865a}.bar-fill.expense-fill{background:#c65b4d}
+.bar-value{font-size:12px;color:#58645c;margin-top:4px}
+.category-chart{width:170px;height:170px;border-radius:50%;margin:4px auto 12px;background:#edf0ed;position:relative}
+.category-chart:after{content:"";position:absolute;inset:42px;border-radius:50%;background:white}
+.legend{display:grid;gap:8px;font-size:13px}
+.legend-item{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.legend-name{display:flex;align-items:center;gap:7px}
+.legend-dot{width:11px;height:11px;border-radius:3px;display:inline-block;flex:none}
+.report-insight{background:#f5f7f5;border-radius:12px;padding:12px;margin-top:12px;font-size:13px;line-height:1.5}
+.pdf-button{width:100%;margin-top:14px}
+@media print{body{background:#fff}main{max-width:none;padding:0}.top,.month,.balance,.cards,main>section:not(.report-panel):not(.pdf-report),.note{display:none!important}.report-panel{display:block!important;margin:0;padding:0;border:0;box-shadow:none}.pdf-button{display:none!important}.chart-card,.report-kpi,.report-insight{break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+
+/* ===== PDF / impresión ===== */
+.pdf-report{display:none}
+@media print{
+  @page{size:A4;margin:0}
+  html,body{background:#eef1f3!important}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  main{display:block!important;max-width:none!important;padding:0!important;margin:0!important}
+  main>*:not(.pdf-report){display:none!important}
+  .pdf-report{display:block!important;visibility:visible!important}
+  .pdf-report,.pdf-report *{visibility:visible!important}
+
+  .pdf-page{
+    width:190mm;
+    min-height:277mm;
+    margin:10mm auto;
+    padding:0 5mm 8mm;
+    background:#fff;
+    color:#27333b;
+    font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    position:relative;
+    box-shadow:0 1px 7px rgba(32,45,55,.08);
+    page-break-after:always;
+    break-after:page;
+    overflow:hidden;
+  }
+  .pdf-page:last-child{page-break-after:auto;break-after:auto}
+
+  .pdf-brand{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    padding:4mm 0 4mm;
+    border-bottom:1px solid #edf0f2;
+    margin-bottom:4mm;
+  }
+  .pdf-brand-left{display:flex;gap:4mm;align-items:center}
+  .pdf-logo{
+    width:14mm;height:14mm;border-radius:5mm;
+    background:#eef2f4;display:grid;place-items:center;flex:none;
+  }
+  .pdf-logo svg{width:8mm;height:8mm;stroke:#26343d}
+  .pdf-brand h1{font-size:8mm;line-height:1;margin:0;color:#202c34;font-weight:750;letter-spacing:-.25px}
+  .pdf-brand p{margin:1.5mm 0 0;color:#8b969d;font-size:3.2mm}
+  .pdf-month{text-align:right;color:#7c878e;font-size:3mm;line-height:1.45}
+  .pdf-month strong{display:block;color:#6e7a81;font-size:3.2mm;font-weight:650}
+
+  .pdf-hero{
+    border:1px solid #e8edef;
+    background:linear-gradient(110deg,#f3f7f8,#f8fafb);
+    border-radius:5mm;padding:5mm 5mm;
+    display:grid;grid-template-columns:1.45fr .9fr;gap:5mm;
+    margin-bottom:3.5mm;
+    box-shadow:0 1px 5px rgba(33,48,58,.04);
+  }
+  .pdf-hero-main .eyebrow{font-size:3.1mm;color:#56636b;font-weight:650;margin-bottom:1mm}
+  .pdf-hero .value{font-size:10mm;line-height:1;font-weight:780;color:#25343d;letter-spacing:-.4px}
+  .pdf-hero .sub{font-size:3mm;color:#8a959b;margin-top:2mm}
+  .pdf-hero-side{
+    border-left:1px solid #e1e7e9;padding-left:5mm;display:flex;align-items:center;gap:3mm
+  }
+  .pdf-hero-side .mini-icon{
+    width:9mm;height:9mm;border-radius:50%;background:#dcefe7;color:#54a27f;display:grid;place-items:center;font-size:5mm
+  }
+  .pdf-hero-side strong{display:block;font-size:3.6mm;color:#3d4a51;margin-bottom:1mm}
+  .pdf-hero-side span{font-size:2.9mm;color:#8b969d;line-height:1.35}
+
+  .pdf-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-bottom:3.5mm}
+  .pdf-kpi{border-radius:4mm;padding:4mm;min-height:27mm;border:1px solid transparent}
+  .pdf-kpi small{display:block;font-size:2.8mm;color:#58666d;margin-bottom:2mm}
+  .pdf-kpi strong{display:block;font-size:5.2mm;font-weight:700;color:#29373f}
+  .pdf-kpi .ratio{display:block;font-size:2.8mm;color:#8a969d;margin-top:1.2mm}
+  .pdf-income{background:#edf7f3;border-color:#e2f0eb}
+  .pdf-expense{background:#fff0ee;border-color:#f6e5e2}
+  .pdf-saving{background:#eef4fd;border-color:#e4ecf8}
+
+  .pdf-card{
+    border:1px solid #e5eaec;border-radius:4mm;padding:4mm;
+    margin-top:3.5mm;break-inside:avoid;
+    box-shadow:0 1px 5px rgba(33,48,58,.025);
+  }
+  .pdf-card h2{font-size:4mm;margin:0 0 2.5mm;color:#2e3b43;font-weight:700}
+  .pdf-card .desc{font-size:2.8mm;color:#8a959b;margin:-1mm 0 3mm}
+  .pdf-calendar-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm}
+  .pdf-calendar-title{font-size:3.5mm;font-weight:700;color:#4c5960}
+  .pdf-calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1.6mm}
+  .pdf-weekday{text-align:center;font-size:2.4mm;color:#7f8a91;font-weight:650;padding-bottom:1mm}
+  .pdf-day{
+    height:8.2mm;border-radius:1.8mm;background:#f1f4f5;
+    display:grid;place-items:center;font-size:2.6mm;color:#56636a;position:relative
+  }
+  .pdf-day.level1{background:#e5eaed}.pdf-day.level2{background:#d7dee2}.pdf-day.level3{background:#c0c9ce}
+  .pdf-day.level4{background:#aab5bc;color:#fff}.pdf-day.level5{background:#7f8b93;color:#fff}
+  .pdf-day.today:after{content:"";position:absolute;inset:1.2mm;border:1px solid #fff;border-radius:50%}
+  .pdf-calendar-legend{display:flex;justify-content:center;align-items:center;gap:1.4mm;margin-top:3mm;font-size:2.4mm;color:#8a959b}
+  .pdf-legend-box{width:4mm;height:3mm;border-radius:.8mm;background:#edf1f3}
+  .pdf-legend-box.l2{background:#d7dee2}.pdf-legend-box.l3{background:#c0c9ce}.pdf-legend-box.l4{background:#aab5bc}.pdf-legend-box.l5{background:#7f8b93}
+
+  .pdf-major-list{display:grid;gap:2mm}
+  .pdf-major-row{display:grid;grid-template-columns:28mm 1fr 24mm;gap:3mm;align-items:center;font-size:2.7mm}
+  .pdf-major-track{height:2.6mm;background:#f0f3f4;border-radius:2mm;overflow:hidden}
+  .pdf-major-fill{height:100%;background:#9ca7ad;border-radius:2mm}
+  .pdf-major-amount{text-align:right;font-weight:700;color:#49565d}
+
+  .pdf-callout{
+    background:#f2f5f6;border-radius:3.5mm;padding:3.3mm 4mm;
+    margin-top:3.5mm;font-size:2.8mm;line-height:1.5;color:#6c7880;break-inside:avoid;
+    display:flex;gap:2.5mm;align-items:flex-start
+  }
+  .pdf-callout-icon{font-size:4mm;line-height:1;color:#67757d}
+  .pdf-callout strong{color:#536169}
+
+  .pdf-section-title{font-size:6mm;color:#2e3b43;margin:0 0 1mm}
+  .pdf-muted{font-size:2.8mm;color:#8a959b;margin:0}
+
+  .pdf-donut-wrap{display:grid;grid-template-columns:70mm 1fr;gap:8mm;align-items:center}
+  .pdf-donut{width:50mm;height:50mm;border-radius:50%;position:relative;margin:auto;background:#dfe5e8}
+  .pdf-donut:after{content:"";position:absolute;inset:13mm;border-radius:50%;background:#fff}
+  .pdf-legend{display:grid;gap:3.5mm}
+  .pdf-legend-item{display:grid;grid-template-columns:1fr auto;gap:3mm;font-size:3mm;align-items:start}
+  .pdf-legend-name{display:flex;gap:2mm;align-items:center;min-width:0}
+  .pdf-dot{width:3mm;height:3mm;border-radius:50%;display:inline-block;flex:none}
+  .pdf-legend-name span:last-child{color:#45525a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pdf-legend-amount{text-align:right;color:#35424a;font-weight:700}
+  .pdf-legend-pct{display:block;color:#8b969d;font-weight:500;margin-top:.8mm}
+
+  .pdf-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:3.5mm}
+  .pdf-table{width:100%;border-collapse:collapse;font-size:2.7mm}
+  .pdf-table th{text-align:left;color:#879198;border-bottom:1px solid #e5eaec;padding:1.8mm 0;font-weight:600}
+  .pdf-table td{padding:2mm 0;border-bottom:1px solid #eef1f2;color:#66737a}
+  .pdf-table td:last-child,.pdf-table th:last-child{text-align:right;color:#4d5a61;font-weight:600}
+  .pdf-table tr:last-child td{border-bottom:0}
+
+  .pdf-daily{display:grid;gap:2.5mm}
+  .pdf-daily-row{display:grid;grid-template-columns:14mm 1fr 22mm;gap:2.5mm;align-items:center;font-size:2.7mm;color:#5d6a71}
+  .pdf-daily-track{height:3mm;background:#f0f3f4;border-radius:2mm;overflow:hidden}
+  .pdf-daily-fill{height:100%;background:#8e999f;border-radius:2mm}
+  .pdf-daily-row strong{text-align:right;color:#4d5a61}
+
+  .pdf-footer{
+    position:absolute;left:5mm;right:5mm;bottom:3mm;text-align:center;
+    font-size:2.6mm;color:#9aa3a8;padding-top:2mm
+  }
+  .pdf-page-number{display:block;margin:1.5mm auto 0;width:30mm;border-top:1px solid #dfe4e6;padding-top:1.5mm;color:#78858c}
+}
+</style></head>
+<body><main>
+<div class="top"><h1>Mi dinero</h1><span aria-hidden="true">💰</span></div>
+<label class="muted" for="month">Mes de control</label><input class="month" id="month" type="month">
+<section class="balance"><div class="muted">Dinero disponible</div><div class="amount" id="balance">$0.00</div><div class="muted">MXN · Ingresos menos gastos</div></section>
+<div class="cards"><div class="card income">↗ Ingresos<strong id="income">$0.00</strong></div><div class="card expense">↘ Gastos<strong id="expense">$0.00</strong></div></div>
+<section class="panel"><h2>Agregar movimiento</h2>
+<form id="form"><select id="type" aria-label="Tipo"><option value="income">Ingreso</option><option value="expense">Gasto</option></select><input id="date" type="date" required aria-label="Fecha"><input id="concept" placeholder="Concepto (ej. sueldo, comida)" required><input id="amount" type="number" min="0.01" step="0.01" placeholder="Importe en pesos" required><button>Guardar movimiento</button></form></section>
+
+<section class="panel report-panel">
+  <h2>Reporte mensual</h2>
+  <p class="report-subtitle">Resumen visual de tus finanzas del mes seleccionado</p>
+  <div class="report-kpis">
+    <div class="report-kpi kpi-income"><span>Ingresos</span><strong id="reportIncome">$0.00</strong></div>
+    <div class="report-kpi kpi-expense"><span>Gastos</span><strong id="reportExpense">$0.00</strong></div>
+    <div class="report-kpi kpi-balance"><span>Saldo final</span><strong id="reportBalance">$0.00</strong></div>
+  </div>
+  <div class="chart-card">
+    <h3>Ingresos contra gastos</h3>
+    <div id="comparisonChart" class="bar-chart" role="img" aria-label="Gráfica de ingresos y gastos"></div>
+  </div>
+  <div class="chart-card">
+    <h3>¿En qué se fue tu dinero?</h3>
+    <div id="categoryChart" class="category-chart"></div>
+    <div id="categoryLegend" class="legend"></div>
+  </div>
+  <div class="report-insight" id="reportInsight">Agrega movimientos para ver tu reporte.</div>
+  <button type="button" class="pdf-button" id="savePdf">Guardar como PDF</button>
+</section>
+
+<section class="panel"><h2>Movimientos</h2><div class="tabs"><button class="active" data-filter="all">Todos</button><button data-filter="income">Ingresos</button><button data-filter="expense">Gastos</button></div><ul id="list"></ul><div id="empty" class="muted">Todavía no hay movimientos este mes.</div></section>
+<section class="panel" aria-labelledby="backupTitle"><h2 id="backupTitle">Copias de seguridad</h2><p class="report-subtitle">Tus movimientos se guardan solo en este dispositivo. Crea una copia para poder recuperarlos si cambias de teléfono o navegador.</p><button type="button" id="backupExport" style="width:100%;margin-bottom:9px">Crear copia de seguridad</button><button type="button" id="backupImportBtn" style="width:100%;background:#e5ebe6;color:#24583f">Restaurar una copia</button><input id="backupFile" type="file" accept=".json,application/json" hidden><p class="note">Guarda el archivo de respaldo en un lugar seguro. No contiene contraseñas ni se envía a internet.</p></section>
+
+<section class="pdf-report" id="pdfReport">
+  <div class="pdf-page">
+    <div class="pdf-brand">
+      <div class="pdf-brand-left">
+        <div class="pdf-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7.5h13.5A2.5 2.5 0 0 1 20 10v8.5A2.5 2.5 0 0 1 17.5 21h-11A2.5 2.5 0 0 1 4 18.5v-11Z"/>
+            <path d="M4 8V6.5A2.5 2.5 0 0 1 6.5 4H17"/>
+            <path d="M16 13h4v4h-4a2 2 0 1 1 0-4Z"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Mi dinero</h1>
+          <p>Resumen financiero mensual</p>
+        </div>
+      </div>
+      <div class="pdf-month"><strong id="pdfMonth1"></strong><span id="pdfGenerated1"></span></div>
+    </div>
+
+    <div class="pdf-hero">
+      <div class="pdf-hero-main">
+        <div class="eyebrow">Saldo final</div>
+        <div class="value" id="pdfHeroBalance">$0.00</div>
+        <div class="sub" id="pdfBalanceSub">Saldo disponible después de tus gastos.</div>
+      </div>
+      <div class="pdf-hero-side">
+        <div class="mini-icon">♧</div>
+        <div><strong id="pdfGreeting">¡Vas muy bien!</strong><span id="pdfGreetingText">Tu saldo ha aumentado este mes.</span></div>
+      </div>
+    </div>
+
+    <div class="pdf-kpis">
+      <div class="pdf-kpi pdf-income">
+        <small>Ingresos</small><strong id="pdfIncome">$0.00</strong><span class="ratio" id="pdfIncomeRatio">100% del total</span>
+      </div>
+      <div class="pdf-kpi pdf-expense">
+        <small>Gastos</small><strong id="pdfExpense">$0.00</strong><span class="ratio" id="pdfExpenseRatio">0% del total</span>
+      </div>
+      <div class="pdf-kpi pdf-saving">
+        <small>Saldo</small><strong id="pdfSavingsBalance">$0.00</strong><span class="ratio" id="pdfSavingsRatio">0% disponible</span>
+      </div>
+    </div>
+
+    <div class="pdf-card">
+      <div class="pdf-calendar-head">
+        <div>
+          <h2 style="margin-bottom:0">Calendario de gastos</h2>
+          <div class="desc">Cada día se sombrea según el total gastado. Los tonos más oscuros indican un gasto mayor.</div>
+        </div>
+      </div>
+      <div id="pdfCalendar"></div>
+      <div class="pdf-calendar-legend">
+        <span>Menor gasto</span><i class="pdf-legend-box"></i><i class="pdf-legend-box l2"></i><i class="pdf-legend-box l3"></i><i class="pdf-legend-box l4"></i><i class="pdf-legend-box l5"></i><span>Mayor gasto</span>
+      </div>
+    </div>
+
+    <div class="pdf-card">
+      <h2>☆ &nbsp;Días de mayor gasto</h2>
+      <div class="desc">Los tres días en los que más dinero salió durante el mes.</div>
+      <div id="pdfMajorDays" class="pdf-major-list"></div>
+    </div>
+
+    <div class="pdf-callout">
+      <div class="pdf-callout-icon">♧</div><div id="pdfInsight1"></div>
+    </div>
+    <div class="pdf-footer"><span id="pdfFooter1">Mi dinero</span><span class="pdf-page-number">1 / 2</span></div>
+  </div>
+
+  <div class="pdf-page">
+    <div class="pdf-brand">
+      <div class="pdf-brand-left">
+        <div class="pdf-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7.5h13.5A2.5 2.5 0 0 1 20 10v8.5A2.5 2.5 0 0 1 17.5 21h-11A2.5 2.5 0 0 1 4 18.5v-11Z"/>
+            <path d="M4 8V6.5A2.5 2.5 0 0 1 6.5 4H17"/>
+            <path d="M16 13h4v4h-4a2 2 0 1 1 0-4Z"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Mi dinero</h1>
+          <p>Resumen financiero mensual</p>
+        </div>
+      </div>
+      <div class="pdf-month"><strong id="pdfMonth2"></strong><span id="pdfGenerated2"></span></div>
+    </div>
+
+    <div class="pdf-card" style="margin-top:0">
+      <h2 style="font-size:5mm">¿En qué se fue tu dinero?</h2>
+      <div class="desc">Distribución de tus gastos por categoría.</div>
+      <div class="pdf-donut-wrap">
+        <div id="pdfDonut" class="pdf-donut"></div>
+        <div id="pdfLegend" class="pdf-legend"></div>
+      </div>
+    </div>
+
+    <div class="pdf-callout">
+      <div class="pdf-callout-icon">♧</div><div id="pdfInsightDonut"></div>
+    </div>
+
+    <div class="pdf-card">
+      <div style="display:flex;gap:3mm;align-items:center;margin-bottom:3mm">
+        <div class="pdf-logo" style="width:10mm;height:10mm;border-radius:3mm"><span style="font-size:5mm">▣</span></div>
+        <div><h2 style="margin:0">Detalle del mes</h2><div class="desc" style="margin:1mm 0 0">Desglose de gastos, actividad diaria e interpretación del resultado</div></div>
+      </div>
+      <div class="pdf-detail-grid">
+        <div class="pdf-card" style="margin-top:0">
+          <h2>Principales gastos</h2>
+          <table class="pdf-table">
+            <thead><tr><th>Concepto</th><th>Importe</th></tr></thead>
+            <tbody id="pdfTopExpenses"></tbody>
+          </table>
+        </div>
+        <div class="pdf-card" style="margin-top:0">
+          <h2>Resumen de actividad</h2>
+          <table class="pdf-table">
+            <tbody>
+              <tr><td>Ingresos registrados</td><td id="pdfIncomeCount">0</td></tr>
+              <tr><td>Gastos registrados</td><td id="pdfExpenseCount">0</td></tr>
+              <tr><td>Total de gastos</td><td id="pdfTotalExpense">$0.00</td></tr>
+              <tr><td>Saldo final</td><td id="pdfFinalBalance">$0.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="pdf-card">
+      <h2>Gasto por día</h2>
+      <div id="pdfDaily" class="pdf-daily"></div>
+    </div>
+
+    <div class="pdf-card">
+      <h2>Lectura del mes</h2>
+      <div class="pdf-callout" style="margin-top:0" id="pdfInsight2"></div>
+    </div>
+
+    <div class="pdf-footer"><em>Tu esfuerzo hoy, se nota en tus resultados de mañana.</em><span class="pdf-page-number">2 / 2</span></div>
+  </div>
+</section>
+
+<p class="note">Tus registros se guardan en este navegador de este dispositivo. No borres los datos del navegador si quieres conservarlos.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id), money=n=>n.toLocaleString('es-MX',{style:'currency',currency:'MXN'});
+const now=new Date(), pad=n=>String(n).padStart(2,'0'), today=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+$('month').value=today.slice(0,7);$('date').value=today;
+const STORAGE_KEY='mi-dinero-items-v2';
+let items=[];
+let filter='all';
+
+function loadItems(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY) || localStorage.getItem('mi-dinero-items');
+    const parsed=raw ? JSON.parse(raw) : [];
+    items=Array.isArray(parsed) ? parsed : [];
+  }catch(e){
+    items=[];
+  }
+}
+
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(items));
+    // Verify that the browser actually retained the data.
+    const check=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+    if(!Array.isArray(check)) throw new Error('No se pudo verificar el guardado');
+    render();
+    return true;
+  }catch(e){
+    alert('No se pudo guardar el movimiento. Si abriste el archivo desde una vista previa, agrégalo a la pantalla de inicio y vuelve a intentarlo.');
+    return false;
+  }
+}
+
+loadItems();
+
+function renderReport(visible){
+  const incomeItems=visible.filter(x=>x.type==='income');
+  const expenseItems=visible.filter(x=>x.type==='expense');
+  const inc=incomeItems.reduce((s,x)=>s+Number(x.amount||0),0);
+  const exp=expenseItems.reduce((s,x)=>s+Number(x.amount||0),0);
+  const balance=inc-exp;
+  $('reportIncome').textContent=money(inc);
+  $('reportExpense').textContent=money(exp);
+  $('reportBalance').textContent=money(balance);
+
+  const max=Math.max(inc,exp,1);
+  $('comparisonChart').innerHTML='';
+  [['Ingresos',inc,'income-fill'],['Gastos',exp,'expense-fill']].forEach(([label,value,cls])=>{
+    const row=document.createElement('div'); row.className='bar-row';
+    const name=document.createElement('div'); name.textContent=label;
+    const wrap=document.createElement('div');
+    const track=document.createElement('div'); track.className='bar-track';
+    const fill=document.createElement('div'); fill.className='bar-fill '+cls;
+    fill.style.width=(value/max*100)+'%'; track.append(fill);
+    const amount=document.createElement('div'); amount.className='bar-value'; amount.textContent=money(value);
+    wrap.append(track,amount); row.append(name,wrap); $('comparisonChart').append(row);
+  });
+
+  const groups={};
+  expenseItems.forEach(x=>{
+    const category=(x.concept||'Sin concepto').trim() || 'Sin concepto';
+    groups[category]=(groups[category]||0)+Number(x.amount||0);
+  });
+  const entries=Object.entries(groups).sort((a,b)=>b[1]-a[1]);
+  const colors=['#39865a','#d58a35','#5986c4','#b56aa8','#c65b4d','#55a9a5','#8b9560','#8c75c4'];
+  const total=entries.reduce((s,e)=>s+e[1],0);
+  const chart=$('categoryChart'), legend=$('categoryLegend');
+  legend.innerHTML='';
+  if(!entries.length){
+    chart.style.background='#edf0ed';
+    legend.textContent='Registra gastos para ver su distribución por concepto.';
+  }else{
+    let angle=0;
+    const slices=entries.map(([name,value],i)=>{
+      const start=angle; angle+=value/total*360;
+      return `${colors[i%colors.length]} ${start}deg ${angle}deg`;
+    });
+    chart.style.background=`conic-gradient(${slices.join(',')})`;
+    entries.forEach(([name,value],i)=>{
+      const item=document.createElement('div');item.className='legend-item';
+      const left=document.createElement('span');left.className='legend-name';
+      const dot=document.createElement('i');dot.className='legend-dot';dot.style.background=colors[i%colors.length];
+      const label=document.createElement('span');label.textContent=name;
+      left.append(dot,label);
+      const amount=document.createElement('strong');amount.textContent=money(value);
+      item.append(left,amount);legend.append(item);
+    });
+  }
+  if(!visible.length){
+    $('reportInsight').textContent='No hay movimientos registrados en este mes. Cuando agregues ingresos y gastos, aquí aparecerá tu análisis mensual.';
+  }else{
+    const top=entries[0];
+    const savings=inc>0?Math.round((balance/inc)*100):null;
+    let message=`Registraste ${incomeItems.length} ingreso(s) y ${expenseItems.length} gasto(s). `;
+    message+=top?`Tu mayor gasto por concepto fue “${top[0]}” (${money(top[1])}). `:'Todavía no hay gastos registrados. ';
+    message+=inc>0?`Tu saldo representa ${savings}% de tus ingresos.`:'Agrega ingresos para calcular qué parte quedó disponible.';
+    $('reportInsight').textContent=message;
+  }
+}
+
+function render(){
+ const month=$('month').value;let visible=items.filter(x=>x.date.startsWith(month));
+ let inc=visible.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0), exp=visible.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
+ $('income').textContent=money(inc);$('expense').textContent=money(exp);$('balance').textContent=money(inc-exp);
+ renderReport(visible);
+ let rows=visible.filter(x=>filter==='all'||x.type===filter).sort((a,b)=>b.date.localeCompare(a.date));
+ $('list').innerHTML='';$('empty').style.display=rows.length?'none':'block';
+ rows.forEach(x=>{let li=document.createElement('li'),d=document.createElement('div'),v=document.createElement('div'),del=document.createElement('button');d.className='desc';d.textContent=x.concept;let sm=document.createElement('small');sm.textContent=x.date;d.append(sm);v.textContent=(x.type==='income'?'+':'−')+money(x.amount);v.style.color=x.type==='income'?'#24583f':'#a94435';del.className='delete';del.textContent='Eliminar';del.onclick=()=>{items=items.filter(y=>y.id!==x.id);save()};li.append(d,v,del);$('list').append(li)})
+}
+$('form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const type=$('type').value;
+  const date=$('date').value;
+  const concept=$('concept').value.trim();
+  const amount=Number($('amount').value);
+  if(!date || !concept || !(amount>0)) return;
+
+  const item={
+    id:crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random()),
+    type,date,concept,amount
+  };
+
+  items.push(item);
+  if(save()){
+    $('concept').value='';
+    $('amount').value='';
+    $('concept').focus();
+  }else{
+    items=items.filter(x=>x.id!==item.id);
+  }
+});
+
+function updatePdfReport(visible){
+  const incomeItems=visible.filter(x=>x.type==='income');
+  const expenseItems=visible.filter(x=>x.type==='expense');
+  const inc=incomeItems.reduce((s,x)=>s+Number(x.amount||0),0);
+  const exp=expenseItems.reduce((s,x)=>s+Number(x.amount||0),0);
+  const balance=inc-exp;
+  const month=$('month').value;
+  const [y,m]=month.split('-');
+  const monthDate=new Date(Number(y),Number(m)-1,1);
+  const monthLabel=monthDate.toLocaleDateString('es-MX',{month:'long',year:'numeric'});
+  const title=monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
+  const generated=new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}).replace('.', '');
+
+  $('pdfMonth1').textContent=title;
+  $('pdfMonth2').textContent=title;
+  $('pdfGenerated1').textContent='Informe generado el '+generated;
+  $('pdfGenerated2').textContent='Informe generado el '+generated;
+
+  $('pdfHeroBalance').textContent=money(balance);
+  $('pdfBalanceSub').textContent=inc>0?'Saldo disponible después de tus gastos.':'Saldo calculado con los movimientos registrados.';
+  $('pdfIncome').textContent=money(inc);
+  $('pdfExpense').textContent=money(exp);
+  $('pdfSavingsBalance').textContent=money(balance);
+
+  const expensePct=inc>0?(exp/inc*100):0;
+  const savingPct=inc>0?(balance/inc*100):0;
+  $('pdfIncomeRatio').textContent=inc>0?'100% del total':'0% del total';
+  $('pdfExpenseRatio').textContent=Math.round(expensePct*10)/10+'% del total';
+  $('pdfSavingsRatio').textContent=Math.round(savingPct*10)/10+'% disponible';
+
+  if(balance>0){
+    $('pdfGreeting').textContent='¡Vas muy bien!';
+    $('pdfGreetingText').textContent='Tu saldo ha quedado disponible este mes.';
+  }else if(balance===0){
+    $('pdfGreeting').textContent='Mes equilibrado';
+    $('pdfGreetingText').textContent='Tus ingresos y gastos están al mismo nivel.';
+  }else{
+    $('pdfGreeting').textContent='Atención a tus gastos';
+    $('pdfGreetingText').textContent='Este mes gastaste más de lo que ingresaste.';
+  }
+
+  const dailyTotals={};
+  expenseItems.forEach(x=>dailyTotals[x.date]=(dailyTotals[x.date]||0)+Number(x.amount||0));
+  const dailyValues=Object.values(dailyTotals);
+  const dailyMax=Math.max(...dailyValues,1);
+
+  // Calendario mensual
+  const cal=$('pdfCalendar');
+  cal.innerHTML='';
+  const grid=document.createElement('div');
+  grid.className='pdf-calendar-grid';
+  ['L','M','X','J','V','S','D'].forEach(d=>{
+    const el=document.createElement('div');el.className='pdf-weekday';el.textContent=d;grid.append(el);
+  });
+  const firstDay=new Date(Number(y),Number(m)-1,1);
+  const offset=(firstDay.getDay()+6)%7;
+  for(let i=0;i<offset;i++) grid.append(document.createElement('div'));
+  const daysInMonth=new Date(Number(y),Number(m),0).getDate();
+  const currentIso=today;
+  for(let day=1;day<=daysInMonth;day++){
+    const iso=`${y}-${pad(Number(m))}-${pad(day)}`;
+    const value=dailyTotals[iso]||0;
+    const el=document.createElement('div');
+    el.className='pdf-day';
+    if(value>0){
+      const ratio=value/dailyMax;
+      el.classList.add(ratio<=.2?'level1':ratio<=.4?'level2':ratio<=.6?'level3':ratio<=.8?'level4':'level5');
+    }
+    if(iso===currentIso) el.classList.add('today');
+    el.textContent=day;
+    grid.append(el);
+  }
+  cal.append(grid);
+
+  // Días de mayor gasto
+  const major=$('pdfMajorDays');
+  major.innerHTML='';
+  const rankedDays=Object.entries(dailyTotals).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  if(!rankedDays.length){
+    const empty=document.createElement('div');empty.className='desc';empty.textContent='Sin gastos registrados durante el mes.';major.append(empty);
+  }else{
+    const maxMajor=rankedDays[0][1]||1;
+    rankedDays.forEach(([date,value],i)=>{
+      const row=document.createElement('div');row.className='pdf-major-row';
+      const label=document.createElement('div');
+      label.textContent=`${i+1}. ${new Date(date+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'long'})}`;
+      const track=document.createElement('div');track.className='pdf-major-track';
+      const fill=document.createElement('div');fill.className='pdf-major-fill';fill.style.width=(value/maxMajor*100)+'%';track.append(fill);
+      const amount=document.createElement('div');amount.className='pdf-major-amount';amount.textContent=money(value);
+      row.append(label,track,amount);major.append(row);
+    });
+  }
+
+  // Categorías / conceptos
+  const groups={};
+  expenseItems.forEach(x=>{
+    const name=(x.concept||'Sin concepto').trim()||'Sin concepto';
+    groups[name]=(groups[name]||0)+Number(x.amount||0);
+  });
+  const entries=Object.entries(groups).sort((a,b)=>b[1]-a[1]);
+  const palette=['#626d74','#aeb7bc','#7f8b92','#98a3a9','#56636a','#c1c8cc','#748087','#9ba5aa'];
+  const total=entries.reduce((s,e)=>s+e[1],0);
+  $('pdfLegend').innerHTML='';
+  if(!entries.length){
+    $('pdfDonut').style.background='#dfe5e8';
+    const empty=document.createElement('div');empty.textContent='Todavía no hay gastos registrados.';empty.style.cssText='font-size:11px;color:#68756c';$('pdfLegend').append(empty);
+    $('pdfInsightDonut').textContent='Registra gastos para ver la distribución de tu dinero por categoría.';
+  }else{
+    let angle=0;
+    const slices=entries.map(([name,value],i)=>{
+      const start=angle;angle+=value/total*360;
+      return `${palette[i%palette.length]} ${start}deg ${angle}deg`;
+    });
+    $('pdfDonut').style.background=`conic-gradient(${slices.join(',')})`;
+    entries.slice(0,8).forEach(([name,value],i)=>{
+      const item=document.createElement('div');item.className='pdf-legend-item';
+      const left=document.createElement('span');left.className='pdf-legend-name';
+      const dot=document.createElement('i');dot.className='pdf-dot';dot.style.background=palette[i%palette.length];
+      const label=document.createElement('span');label.textContent=name;left.append(dot,label);
+      const amountWrap=document.createElement('span');amountWrap.className='pdf-legend-amount';
+      amountWrap.textContent=money(value);
+      const pct=document.createElement('span');pct.className='pdf-legend-pct';pct.textContent=Math.round(value/total*1000)/10+'%';
+      amountWrap.append(pct);item.append(left,amountWrap);$('pdfLegend').append(item);
+    });
+    const top=entries[0];
+    $('pdfInsightDonut').textContent=`El mayor gasto fue “${top[0]}” con ${money(top[1])}. Representa el ${Math.round(top[1]/(inc||total)*100)}% de tus ingresos.`;
+  }
+
+  const top=entries[0];
+  $('pdfInsight1').textContent=visible.length
+    ? `Registraste ${incomeItems.length} ingreso(s) y ${expenseItems.length} gasto(s). Tu gasto promedio por movimiento fue ${money(expenseItems.length?exp/expenseItems.length:0)}. ${inc>0?'Tu saldo representa el '+Math.round(balance/inc*100)+'% de tus ingresos.':'Agrega ingresos para calcular tu porcentaje disponible.'}`
+    : 'Agrega movimientos para obtener un resumen de tu mes.';
+
+  $('pdfIncomeCount').textContent=incomeItems.length;
+  $('pdfExpenseCount').textContent=expenseItems.length;
+  $('pdfTotalExpense').textContent=money(exp);
+  $('pdfFinalBalance').textContent=money(balance);
+
+  $('pdfTopExpenses').innerHTML='';
+  entries.slice(0,10).forEach(([name,value])=>{
+    const tr=document.createElement('tr');
+    const td1=document.createElement('td');td1.textContent=name;
+    const td2=document.createElement('td');td2.textContent=money(value);
+    tr.append(td1,td2);$('pdfTopExpenses').append(tr);
+  });
+  if(!entries.length){
+    const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=2;td.textContent='Sin gastos registrados';tr.append(td);$('pdfTopExpenses').append(tr);
+  }
+
+  $('pdfDaily').innerHTML='';
+  const dailyEntries=Object.entries(dailyTotals).sort((a,b)=>a[0].localeCompare(b[0]));
+  dailyEntries.forEach(([date,value])=>{
+    const row=document.createElement('div');row.className='pdf-daily-row';
+    const d=document.createElement('div');d.textContent=new Date(date+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short'}).replace('.','');
+    const track=document.createElement('div');track.className='pdf-daily-track';
+    const fill=document.createElement('div');fill.className='pdf-daily-fill';fill.style.width=(value/dailyMax*100)+'%';track.append(fill);
+    const amount=document.createElement('strong');amount.textContent=money(value);
+    row.append(d,track,amount);$('pdfDaily').append(row);
+  });
+  if(!dailyEntries.length){
+    const empty=document.createElement('div');empty.style.cssText='font-size:11px;color:#68756c';empty.textContent='Sin gastos registrados durante el mes.';$('pdfDaily').append(empty);
+  }
+
+  let insight2='Agrega movimientos para obtener una lectura del mes.';
+  if(visible.length){
+    if(balance<0) insight2='Este mes los gastos superaron los ingresos. Conviene revisar primero los conceptos con mayor importe y los días con mayor gasto.';
+    else if(inc>0 && balance===inc) insight2='No registraste gastos este mes. Todo el ingreso quedó disponible según los movimientos capturados.';
+    else if(inc>0){
+      const pct=Math.round(balance/inc*100);
+      const avg=dailyValues.length?exp/dailyValues.length:0;
+      insight2=`Después de tus gastos, conservaste ${pct}% de los ingresos registrados. El promedio de gasto por día con actividad fue de ${money(avg)}.${top?' El concepto que más aportó al gasto fue “'+top[0]+'”.':''}`;
+    }else insight2='Hay gastos registrados, pero no hay ingresos en el mes seleccionado; agrega los ingresos correspondientes para evaluar el resultado completo.';
+  }
+  $('pdfInsight2').textContent=insight2;
+}
+$('savePdf').addEventListener('click',()=>{
+  const visible=items.filter(x=>x.date.startsWith($('month').value));
+  updatePdfReport(visible);
+  setTimeout(()=>window.print(),50);
+});
+
+
+$('backupExport').addEventListener('click',()=>{
+  const backup={app:'Mi dinero',version:1,createdAt:new Date().toISOString(),items};
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='Mi-dinero-respaldo-'+today+'.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+$('backupImportBtn').addEventListener('click',()=>$('backupFile').click());
+$('backupFile').addEventListener('change',async e=>{
+  const file=e.target.files?.[0]; if(!file)return;
+  try{
+    const data=JSON.parse(await file.text());
+    const incoming=Array.isArray(data)?data:data.items;
+    const valid=Array.isArray(incoming)&&incoming.every(x=>x&&['income','expense'].includes(x.type)&&typeof x.date==='string'&&typeof x.concept==='string'&&Number.isFinite(Number(x.amount))&&Number(x.amount)>0);
+    if(!valid)throw new Error('El archivo no tiene el formato de una copia válida.');
+    if(!confirm('Restaurar reemplazará los movimientos actuales por los del respaldo. ¿Continuar?'))return;
+    items=incoming.map(x=>({...x,amount:Number(x.amount),id:x.id||String(Date.now()+Math.random())}));
+    if(save())alert('Copia restaurada correctamente.');
+  }catch(err){alert('No se pudo restaurar la copia: '+err.message)}
+  finally{e.target.value=''}
+});
+$('month').addEventListener('change',render);document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));render()});render();updatePdfReport(items.filter(x=>x.date.startsWith($('month').value)));
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+window.addEventListener('beforeunload',()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(items))}catch{}});
+</script></body></html>
